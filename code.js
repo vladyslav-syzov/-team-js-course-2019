@@ -99,7 +99,6 @@ Game.prototype = {
 		this.$stashContainer.innerHTML = '';
 		this.$playContainer.innerHTML = '';
 
-		//create decks here
 		this.dealDeck = new DealDeck(kits.splice(0, GAME_SETTINGS.amounts.dealDeck));
 		this.$stashContainer.appendChild(this.dealDeck.$wrapper);
 
@@ -118,13 +117,17 @@ Game.prototype = {
 		}
 	},
 
-	getProperFinishDeck: function(suit) {
-		return this.finishDecks.filter((deck) => deck.suit === suit)[0]
-				|| this.finishDecks.filter((deck) => deck.isEmpty())[0];
-	},
+	getShuffledDecks: function() {
+		let kits = this.cardKits.slice();
+		let shuffledKits = [];
 
-	registerEvents: function() {
+		while (kits.length) {
+			let randomIndex = Math.round(Math.random() * (kits.length - 1));
 
+			shuffledKits.push(kits.splice(randomIndex, 1)[0]);
+		}
+
+		return shuffledKits;
 	},
 
 	generateCardKits: function() {
@@ -188,17 +191,62 @@ Game.prototype = {
 		];
 	},
 
-	getShuffledDecks: function() {
-		let kits = this.cardKits.slice();
-		let shuffledKits = [];
+	getProperFinishDeck: function(suit) {
+		return this.finishDecks.filter((deck) => deck.suit === suit)[0]
+				|| this.finishDecks.filter((deck) => deck.isEmpty())[0];
+	},
 
-		while (kits.length) {
-			let randomIndex = Math.round(Math.random() * (kits.length - 1));
+	registerEvents: function() {
+		this.$el.addEventListener('deck.click', this.onDeckClick().bind(this));
+	},
 
-			shuffledKits.push(kits.splice(randomIndex, 1)[0]);
+	onDeckClick: function() {
+		let selectedDeck = null;
+		let selectedCards = [];
+
+		//this method requires refactoring
+		return function(e) {
+			let deck = e.detail.deck;
+			let cards = e.detail.cards;
+			
+			// handle case when selectedDeck === deck
+
+			if (deck === null) {
+				if (selectedDeck) {
+					selectedDeck.unselectCards();
+				}
+
+				selectedDeck = null;
+				selectedCards = [];
+
+				return;
+			}
+			
+			if (selectedDeck) {
+				if(this.moveCards(selectedDeck, deck, selectedCards)){
+					selectedDeck = null;
+					selectedCards = [];
+					deck.unselectCards();
+				} else {
+					selectedDeck.unselectCards();
+					selectedDeck = deck;
+					selectedCards = cards;
+				}
+			} else {
+				selectedDeck = deck;
+				selectedCards = cards;
+			}
+		}
+	},
+
+	moveCards: function(deckFrom, deckTo, cards) {
+		if (deckTo.addCards(cards)) {
+			deckFrom.removeCards(cards);
+
+			return true;
 		}
 
-		return shuffledKits;
+		return false;
 	}
 }
 
@@ -322,14 +370,14 @@ Card.prototype = {
 	},
 
 	onClick: function(e) {
-		// e.stopPropagation();
+		e.stopPropagation();
 		
-		// this.$el.dispatchEvent(new CustomEvent('card.click', {
-		// 	bubbles: true,
-		// 	detail: {
-		// 		card: this
-		// 	}
-		// }));
+		this.$el.dispatchEvent(new CustomEvent('card.click', {
+			bubbles: true,
+			detail: {
+				card: this
+			}
+		}));
 	},
 
 	onDoubleClick: function() {
