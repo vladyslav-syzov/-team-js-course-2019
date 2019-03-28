@@ -43,6 +43,7 @@ function DealDeck() {
 
 	//deal deck must create extra deck node nearby to place opened cards there
 	this.$el.classList.add('flat');
+	this.$wrapper.classList.add('col-3');
 }
 
 function FinishDeck() {
@@ -57,9 +58,7 @@ function FinishDeck() {
 function PlayingDeck(cardsKit) {
 	Deck.apply(this, arguments);
 
-	if (this.cards.length > 1) {
-		this.cards.slice(-1).open();
-	}
+	this.openLastCard();
 }
 
 function Deck(cardsKit) { // cards kit is array of objects like this [{number: 1, suit: 0, color: 0}, {number: 6, suit: 1, color: 1}]
@@ -80,15 +79,15 @@ function Deck(cardsKit) { // cards kit is array of objects like this [{number: 1
 	this.registerEvents();
 }
 
-function Card(color, suit, number) {
-	this.color = color;
-	this.suit = suit;
-	this.number = number;
+function Card(cardKit) {
+	this.color = cardKit.color;
+	this.suit = cardKit.suit;
+	this.number = cardKit.number;
 	this.isOpen = false;
 
 	this.$el = document.createElement('div');
-	this.$el.classList.add('card', GAME_SETTINGS.suitsNames[suit]);
-	this.$el.innerText = GAME_SETTINGS.signs[number];
+	this.$el.classList.add('card', GAME_SETTINGS.suitsNames[cardKit.suit]);
+	this.$el.innerText = GAME_SETTINGS.signs[cardKit.number];
 
 	this.registerEvents();
 }
@@ -204,15 +203,98 @@ Game.prototype = {
 }
 
 Deck.prototype = {
-	createCards: function(cardsAmount) {
-		for(var i = 0; i < cardsAmount; i++){
-			var card = new Card(i % 2, i % 4, i % 13);
+	createCards: function(cardKits) {
+		for(let i = 0; i < cardKits.length; i++) {
+			let card = new Card(cardKits[i]);
+
+			this.$el.appendChild(card.$el);
 			this.cards.push(card);
 		}
 	},
 
 	registerEvents: function() {
+		this.$el.addEventListener('card.click', this.onCardClick.bind(this));
+		this.$el.addEventListener('click', this.onClick.bind(this));
+	},
 
+	onCardClick: function(e) {
+		let cards = this.getSelectedCards(e.detail.card);
+
+		this.$el.dispatchEvent(new CustomEvent('deck.click', {
+			bubbles: true,
+			detail: {
+				deck: this,
+				cards: cards
+			}
+		}));
+	},
+
+	getSelectedCards: function(card) {
+		let cardIndex = this.cards.indexOf(card);
+		let cards = this.cards.slice(cardIndex);
+
+		this.unselectCards();
+		cards.forEach((card) => card.select());
+
+		return cards;
+	},
+
+	unselectCards: function() {
+		this.cards.forEach((card) => card.unselect());
+	},
+
+	getCardIndex: function(card) {
+		for(let i = 0; i < this.cards.length; i++) {
+			let currentCard = this.cards[i];
+
+			// refactor this
+			if (currentCard.color === card.color && currentCard.number === card.number && currentCard.suit === card.suit) {
+				return i;
+			}
+		}
+
+		return -1;
+	},
+
+	addCards: function(cards) {
+		if (!this.verifyTurn(cards)) {
+			return false;
+		}
+		//You should put only 1 card (last) from array to the final deck
+		//So this method probably also have to be overrided
+		for(let i = 0; i < cards.length; i++) {
+			this.$el.appendChild(cards[i].$el);
+			this.cards.push(cards[i]);
+		}
+
+		return true;
+	},
+
+	removeCards: function(cards) {
+		let cardIndex = this.getCardIndex(cards[0]);
+
+		this.cards.splice(cardIndex);
+	},
+
+	verifyTurn: function(cards) {
+		//Override this method in FinalDeck
+		let upperCard = cards[0];
+		let cardTo = this.cards.slice(-1).pop();
+
+		return (!cardTo && upperCard.number === 13)
+				|| (cardTo && upperCard.color != cardTo.color 
+				&& cardTo.number - upperCard.number === 1);
+				
+	},
+
+	onClick: function(e) {
+		this.$el.dispatchEvent(new CustomEvent('deck.click', {
+			bubbles: true,
+			detail: {
+				deck: this,
+				cards: []
+			}
+		}));
 	}
 }
 
@@ -230,12 +312,28 @@ Card.prototype = {
 		this.isOpen = true;
 	},
 
-	onClick: function() {
+	close: function() {
+		this.$el.classList.remove('open');
+		this.isOpen = false;
+	},
 
+	isClosed: function() {
+		return !this.isOpen;
+	},
+
+	onClick: function(e) {
+		e.stopPropagation();
+		
+		this.$el.dispatchEvent(new CustomEvent('card.click', {
+			bubbles: true,
+			detail: {
+				card: this
+			}
+		}));
 	},
 
 	onDoubleClick: function() {
-
+		//implement this!
 	},
 
 	registerEvents: function() {
@@ -245,8 +343,45 @@ Card.prototype = {
 }
 
 DealDeck.prototype = Object.assign(Object.create(Deck.prototype), {
-	onClick: function() {
+	onClick: function(e) {
+		let closedCard = this.getFirstClosedCard();
 
+		if (closedCard) {
+			this.getFirstClosedCard().open();
+		} else {
+			this.revert();
+		}
+
+		this.$el.dispatchEvent(new CustomEvent('deck.click', {
+			bubbles: true,
+			detail: {
+				deck: null
+			}
+		}));
+	},
+
+	getFirstClosedCard: function() {
+		return this.cards.filter((card) => card.isClosed())[0];
+	},
+
+	revert: function() {
+		this.cards.forEach((card) => card.close());
+	},
+
+	addCards: function() {
+		return false;
+	},
+
+	getSelectedCards: function(card) {
+		card.select();
+
+		return [card];
+	},
+
+	removeCards: function(cards) {
+		let cardIndex = this.getCardIndex(cards[0]);
+
+		this.cards.splice(cardIndex, 1);
 	}
 });
 
@@ -261,5 +396,15 @@ FinishDeck.prototype = Object.assign(Object.create(Deck.prototype), {
 });
 
 PlayingDeck.prototype = Object.assign(Object.create(Deck.prototype), {
-	
+	openLastCard: function() {
+		if (this.cards.length) {
+			this.cards.slice(-1).pop().open();
+		}
+	},
+
+	removeCards: function() {
+		Deck.prototype.removeCards.apply(this, arguments);
+
+		this.openLastCard();
+	}
 });
