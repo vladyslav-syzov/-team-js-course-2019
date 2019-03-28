@@ -322,14 +322,14 @@ Card.prototype = {
 	},
 
 	onClick: function(e) {
-		e.stopPropagation();
+		// e.stopPropagation();
 		
-		this.$el.dispatchEvent(new CustomEvent('card.click', {
-			bubbles: true,
-			detail: {
-				card: this
-			}
-		}));
+		// this.$el.dispatchEvent(new CustomEvent('card.click', {
+		// 	bubbles: true,
+		// 	detail: {
+		// 		card: this
+		// 	}
+		// }));
 	},
 
 	onDoubleClick: function() {
