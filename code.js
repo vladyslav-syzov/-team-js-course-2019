@@ -30,21 +30,23 @@ function Game() {
 
 	this.$stashContainer = document.getElementById('stashDecks');
 	this.$playContainer = document.getElementById('playDecks');
-	this.$container = document.getElementById('game');
+	this.$el = document.getElementById('game');
+
+	this.cardKits = this.generateCardKits();
 
 	this.createDecks();
 	this.registerEvents();
 }
 
 function DealDeck() {
-	Deck.call(this);
+	Deck.apply(this, arguments);
 
 	//deal deck must create extra deck node nearby to place opened cards there
 	this.$el.classList.add('flat');
 }
 
 function FinishDeck() {
-	Deck.call(this, 0);
+	Deck.apply(this, arguments);
 
 	this.$el.classList.add('flat');
 
@@ -53,7 +55,7 @@ function FinishDeck() {
 }
 
 function PlayingDeck(cardsKit) {
-	Deck.call(this, cardsAmount);
+	Deck.apply(this, arguments);
 
 	if (this.cards.length > 1) {
 		this.cards.slice(-1).open();
@@ -63,11 +65,16 @@ function PlayingDeck(cardsKit) {
 function Deck(cardsKit) { // cards kit is array of objects like this [{number: 1, suit: 0, color: 0}, {number: 6, suit: 1, color: 1}]
 	this.cards = [];
 
+	this.$el = document.createElement('div');
+	this.$wrapper = document.createElement('div');
+
 	if (cardsKit.length) {
 		this.createCards(cardsKit);
 	}
 
 	//decks must be wrapped in .col div
+	this.$wrapper.appendChild(this.$el);
+	this.$wrapper.classList.add('col');
 	this.$el.classList.add('deck');
 
 	this.registerEvents();
@@ -88,10 +95,28 @@ function Card(color, suit, number) {
 
 Game.prototype = {
 	createDecks: function() {
-		//this.$stashContainer.innerHTML = '';
-		//this.$playContainer.innerHTML = '';
+		let kits = this.getShuffledDecks();
+
+		this.$stashContainer.innerHTML = '';
+		this.$playContainer.innerHTML = '';
 
 		//create decks here
+		this.dealDeck = new DealDeck(kits.splice(0, GAME_SETTINGS.amounts.dealDeck));
+		this.$stashContainer.appendChild(this.dealDeck.$wrapper);
+
+		for(let i = 0; i < GAME_SETTINGS.suits.length; i++) {
+			let finishDeck = new FinishDeck([]);
+
+			this.$stashContainer.appendChild(finishDeck.$wrapper);
+		}
+
+		let deckSettings = GAME_SETTINGS.amounts.decks;
+
+		for(let i = 0; i < deckSettings.length; i++) {
+			let deck = new PlayingDeck(kits.splice(0, deckSettings[i]));
+
+			this.$playContainer.appendChild(deck.$wrapper);
+		}
 	},
 
 	getProperFinishDeck: function(suit) {
@@ -102,11 +127,88 @@ Game.prototype = {
 	registerEvents: function() {
 
 	},
+
+	generateCardKits: function() {
+	//generate card data using settings
+		return [
+			{color: 0, suit: 0, number: 1},
+			{color: 0, suit: 0, number: 2},
+			{color: 0, suit: 0, number: 3},
+			{color: 0, suit: 0, number: 4},
+			{color: 0, suit: 0, number: 5},
+			{color: 0, suit: 0, number: 6},
+			{color: 0, suit: 0, number: 7},
+			{color: 0, suit: 0, number: 8},
+			{color: 0, suit: 0, number: 9},
+			{color: 0, suit: 0, number: 10},
+			{color: 0, suit: 0, number: 11},
+			{color: 0, suit: 0, number: 12},
+			{color: 0, suit: 0, number: 13},
+
+			{color: 0, suit: 1, number: 1},
+			{color: 0, suit: 1, number: 2},
+			{color: 0, suit: 1, number: 3},
+			{color: 0, suit: 1, number: 4},
+			{color: 0, suit: 1, number: 5},
+			{color: 0, suit: 1, number: 6},
+			{color: 0, suit: 1, number: 7},
+			{color: 0, suit: 1, number: 8},
+			{color: 0, suit: 1, number: 9},
+			{color: 0, suit: 1, number: 10},
+			{color: 0, suit: 1, number: 11},
+			{color: 0, suit: 1, number: 12},
+			{color: 0, suit: 1, number: 13},
+
+			{color: 1, suit: 2, number: 1},
+			{color: 1, suit: 2, number: 2},
+			{color: 1, suit: 2, number: 3},
+			{color: 1, suit: 2, number: 4},
+			{color: 1, suit: 2, number: 5},
+			{color: 1, suit: 2, number: 6},
+			{color: 1, suit: 2, number: 7},
+			{color: 1, suit: 2, number: 8},
+			{color: 1, suit: 2, number: 9},
+			{color: 1, suit: 2, number: 10},
+			{color: 1, suit: 2, number: 11},
+			{color: 1, suit: 2, number: 12},
+			{color: 1, suit: 2, number: 13},
+
+			{color: 1, suit: 3, number: 1},
+			{color: 1, suit: 3, number: 2},
+			{color: 1, suit: 3, number: 3},
+			{color: 1, suit: 3, number: 4},
+			{color: 1, suit: 3, number: 5},
+			{color: 1, suit: 3, number: 6},
+			{color: 1, suit: 3, number: 7},
+			{color: 1, suit: 3, number: 8},
+			{color: 1, suit: 3, number: 9},
+			{color: 1, suit: 3, number: 10},
+			{color: 1, suit: 3, number: 11},
+			{color: 1, suit: 3, number: 12},
+			{color: 1, suit: 3, number: 13}			
+		];
+	},
+
+	getShuffledDecks: function() {
+		let kits = this.cardKits.slice();
+		let shuffledKits = [];
+
+		while (kits.length) {
+			let randomIndex = Math.round(Math.random() * (kits.length - 1));
+
+			shuffledKits.push(kits.splice(randomIndex, 1)[0]);
+		}
+
+		return shuffledKits;
+	}
 }
 
 Deck.prototype = {
 	createCards: function(cardsAmount) {
-
+		for(var i = 0; i < cardsAmount; i++){
+			var card = new Card(i % 2, i % 4, i % 13);
+			this.cards.push(card);
+		}
 	},
 
 	registerEvents: function() {
