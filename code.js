@@ -211,6 +211,11 @@ Game.prototype = {
 			
 			// handle case when selectedDeck === deck
 
+			if(deck instanceof DealDeck){
+				deck.onClick();
+				return;
+			}
+
 			if (deck === null) {
 				if (selectedDeck) {
 					selectedDeck.unselectCards();
